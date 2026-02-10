@@ -299,21 +299,24 @@ func (pr *PrintRunner) initializeNamespaceFilter() error {
 		return nil
 	}
 
-	// If namespace flag is not specified, try to use the default namespace from the cluster
-	if pr.namespace == "" {
-		ns, err := getNamespaceInCurrentContext()
-		if err != nil && pr.inputFile == "" {
-			// When asked to read from the cluster, but getting the current namespace
-			// failed for whatever reason - do not process the request.
-			return err
-		}
-		// If err is nil we got the right filtered namespace.
-		// If the input file is specified, and we failed to get the namespace, use all namespaces.
-		pr.namespaceFilter = ns
+	// If namespace is specified, use it
+	if pr.namespace != "" {
+		pr.namespaceFilter = pr.namespace
 		return nil
 	}
 
-	pr.namespaceFilter = pr.namespace
+	// If reading from file and no namespace specified, use all namespaces
+	if pr.inputFile != "" {
+		pr.namespaceFilter = ""
+		return nil
+	}
+
+	// Only try to get namespace from cluster if reading from cluster
+	ns, err := getNamespaceInCurrentContext()
+	if err != nil {
+		return err
+	}
+	pr.namespaceFilter = ns
 	return nil
 }
 
@@ -373,6 +376,16 @@ if specified with --namespace.`)
 		for _, flag := range flags {
 			flagName := fmt.Sprintf("%s-%s", provider, flag.Name)
 			pr.providerSpecificFlags[flagName] = cmd.Flags().String(flagName, flag.DefaultValue, fmt.Sprintf("Provider-specific: %s. %s", provider, flag.Description))
+
+			// Only apply NoOptDefVal to specific boolean-like flags
+			// These flags can be used without a value: --flag (defaults to "true")
+			// Only for flags that end with known boolean-like suffixes
+			if strings.HasSuffix(flag.Name, "-tls-route") || strings.HasSuffix(flag.Name, "use-tls-route") {
+				f := cmd.Flags().Lookup(flagName)
+				if f != nil {
+					f.NoOptDefVal = "true"
+				}
+			}
 		}
 	}
 

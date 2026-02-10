@@ -30,6 +30,9 @@ import (
 const Name = "ingress-nginx"
 const NginxIngressClass = "nginx"
 const NginxIngressClassFlag = "ingress-class"
+const UseTLSRouteFlag = "use-tls-route"
+const TLSGatewayNameFlag = "tls-gateway-name"
+const TLSGatewaySectionFlag = "tls-gateway-section"
 
 func init() {
 	i2gw.ProviderConstructorByName[Name] = NewProvider
@@ -37,6 +40,21 @@ func init() {
 		Name:         "ingress-class",
 		Description:  "The name of the ingress class to select. Defaults to 'nginx'",
 		DefaultValue: NginxIngressClass,
+	})
+	i2gw.RegisterProviderSpecificFlag(Name, i2gw.ProviderSpecificFlag{
+		Name:         UseTLSRouteFlag,
+		Description:  "Generate TLSRoute resources instead of HTTPRoute for Ingresses with TLS configuration. This enables TLS passthrough mode. Ingresses without TLS spec will cause an error. Set to 'true' to enable (e.g., --ingress-nginx-use-tls-route=true).",
+		DefaultValue: "false",
+	})
+	i2gw.RegisterProviderSpecificFlag(Name, i2gw.ProviderSpecificFlag{
+		Name:         TLSGatewayNameFlag,
+		Description:  "When using use-tls-route, reference an existing Gateway by name instead of generating a new one. If not specified, a new Gateway will be generated.",
+		DefaultValue: "",
+	})
+	i2gw.RegisterProviderSpecificFlag(Name, i2gw.ProviderSpecificFlag{
+		Name:         TLSGatewaySectionFlag,
+		Description:  "When using tls-gateway-name, specify which listener section name to reference in the TLSRoute parentRefs.",
+		DefaultValue: "",
 	})
 }
 
@@ -52,7 +70,7 @@ func NewProvider(conf *i2gw.ProviderConf) i2gw.Provider {
 	return &Provider{
 		storage:                newResourcesStorage(),
 		resourceReader:         newResourceReader(conf),
-		resourcesToIRConverter: newResourcesToIRConverter(),
+		resourcesToIRConverter: newResourcesToIRConverter(conf),
 	}
 }
 

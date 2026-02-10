@@ -17,6 +17,8 @@ limitations under the License.
 package ingressnginx
 
 import (
+	"fmt"
+
 	"github.com/kubernetes-sigs/ingress2gateway/pkg/i2gw/notifications"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -24,4 +26,10 @@ import (
 func notify(mType notifications.MessageType, message string, callingObject ...client.Object) {
 	newNotification := notifications.NewNotification(mType, message, callingObject...)
 	notifications.NotificationAggr.DispatchNotification(newNotification, string(Name))
+}
+
+// notifyImplementationSpecificPath dispatches a warning notification for ImplementationSpecific pathType
+func notifyImplementationSpecificPath(path string) {
+	message := fmt.Sprintf("PathType ImplementationSpecific for path '%s' is being treated as Prefix. Consider using explicit PathType: Prefix in your Ingress specification.", path)
+	notify(notifications.WarningNotification, message)
 }
